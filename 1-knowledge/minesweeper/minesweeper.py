@@ -105,27 +105,39 @@ class Sentence():
         """
         Returns the set of all cells in self.cells known to be mines.
         """
-        raise NotImplementedError
+        if len(self.cells) == self.count:
+            return set(self.cells)
+        return set()
 
     def known_safes(self):
         """
         Returns the set of all cells in self.cells known to be safe.
         """
-        raise NotImplementedError
+        if self.count == 0:
+            return set(self.cells)
+        return set()
+
 
     def mark_mine(self, cell):
         """
         Updates internal knowledge representation given the fact that
         a cell is known to be a mine.
         """
-        raise NotImplementedError
+        if cell in self.cells:
+            self.cells.remove(cell)
+            self.count -= 1
+            return 1
+        return 0
 
     def mark_safe(self, cell):
         """
         Updates internal knowledge representation given the fact that
         a cell is known to be safe.
         """
-        raise NotImplementedError
+        if cell in self.cells:
+            self.cells.remove(cell)
+            return 1
+        return 0
 
 
 class MinesweeperAI():
@@ -154,18 +166,22 @@ class MinesweeperAI():
         Marks a cell as a mine, and updates all knowledge
         to mark that cell as a mine as well.
         """
+        counter = 0
         self.mines.add(cell)
         for sentence in self.knowledge:
-            sentence.mark_mine(cell)
+            counter += sentence.mark_mine(cell)
+        return counter
 
     def mark_safe(self, cell):
         """
         Marks a cell as safe, and updates all knowledge
         to mark that cell as safe as well.
         """
+        counter = 0
         self.safes.add(cell)
         for sentence in self.knowledge:
-            sentence.mark_safe(cell)
+            counter += sentence.mark_safe(cell)
+        return counter
 
     def add_knowledge(self, cell, count):
         """
@@ -182,7 +198,84 @@ class MinesweeperAI():
             5) add any new sentences to the AI's knowledge base
                if they can be inferred from existing knowledge
         """
-        raise NotImplementedError
+        # mark the cell as a move that has been made
+        self.moves_made.add(cell)
+
+        # mark the cell as safe
+        self.mark_safe(cell)
+
+        neighbors = set()
+        i, j = cell
+
+        for x in range(max(0, i-1), min(i+2, self.height)):
+            for y in range(max(0, j-1), min(j+2, self.width)):
+                if (x, y) != (i, j):
+                    neighbors.add((x, y))
+
+        # add a new sentence to the AI's knowledge base
+        # based on the value of `cell` and `count`
+        self.knowledge.append(Sentence(neighbors, count))
+
+        # mark any additional cells as safe or as mines
+        # if it can be concluded based on the AI's knowledge base
+        self.update_safes_and_mines()
+
+        # add any new sentences to the AI's knowledge base
+        # if they can be inferred from existing knowledge
+        new_inferences = self.get_new_inferences()
+        while new_inferences:
+            for sentence in new_inferences:
+                self.knowledge.append(sentence)
+
+            self.update_safes_and_mines()
+            new_inferences = self.get_new_inferences()
+
+    def update_safes_and_mines(self):
+        # repeat update if an update was made in the previous cycle
+        counter = 1
+        while counter:
+            counter = 0
+            for sentence in self.knowledge:
+                for cell in sentence.known_safes():
+                    self.mark_safe(cell)
+                    counter += 1
+                for cell in sentence.known_mines():
+                    self.mark_mine(cell)
+                    counter += 1
+            for cell in self.safes:
+                counter += self.mark_safe(cell)
+            for cell in self.mines:
+                counter += self.mark_mine(cell)
+
+    def get_new_inferences(self):
+        new_inferences = []
+        sentences_to_remove = []
+
+        # for each sentence known
+        for set_1 in self.knowledge:
+            # all cells removed from the sentence
+            if not set_1.cells:
+                sentences_to_remove.append(set_1)
+                continue
+
+            for set_2 in self.knowledge:
+                # all cells removed from the sentence
+                if not set_2.cells:
+                    sentences_to_remove.append(set_2)
+                    continue
+
+                if set_1 != set_2:
+                    # check if subset, if yes, set2 - set1 = count2 - count1
+                    if set_2.cells.issubset(set_1.cells):
+                        diff_cells = set_1.cells.difference(set_2.cells)
+                        diff_count = set_1.count - set_2.count
+                        # an inference can be drawn
+                        new_inference_to_add = Sentence(diff_cells, diff_count)
+                        if new_inference_to_add not in self.knowledge:
+                            new_inferences.append(new_inference_to_add)
+
+        self.knowledge = [x for x in self.knowledge if x not in sentences_to_remove]
+        return new_inferences
 
     def make_safe_move(self):
         """
@@ -193,7 +286,10 @@ class MinesweeperAI():
         This function may use the knowledge in self.mines, self.safes
         and self.moves_made, but should not modify any of those values.
         """
-        raise NotImplementedError
+        for move in self.safes:
+            if move not in self.moves_made and move not in self.mines:
+                return move
+        return None
 
     def make_random_move(self):
         """
@@ -202,4 +298,9 @@ class MinesweeperAI():
             1) have not already been chosen, and
             2) are not known to be mines
         """
-        raise NotImplementedError
+        for i in range(self.height):
+            for j in range(self.width):
+                move = (i, j)
+                if move not in self.moves_made and move not in self.mines:
+                    return move
+        return None
