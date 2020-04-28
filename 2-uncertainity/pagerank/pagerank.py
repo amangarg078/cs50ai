@@ -92,7 +92,7 @@ def sample_pagerank(corpus, damping_factor, n):
         curr_distribution = transition_model(corpus, page, damping_factor)
         for _page in distribution:
             distribution[_page] = (((i-1) * distribution[_page]) + curr_distribution[_page]) / i
-        page =  random.choices(list(distribution.keys()), weights=list(distribution.values()), k=1)[0]
+        page = random.choices(list(distribution.keys()), weights=list(distribution.values()), k=1)[0]
 
     return distribution
 
