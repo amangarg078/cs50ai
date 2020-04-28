@@ -60,19 +60,17 @@ def transition_model(corpus, page, damping_factor):
     """
     pd = {}
     page_links = corpus[page]
-    all_pages = corpus.keys()
-    pd = pd.fromkeys(all_pages, 0)
-    total_pages = len(all_pages)
+    total_pages = len(corpus)
+    total_linked_pages = len(page_links)
     if page_links:
-        total_linked_pages = len(page_links)
-        for key in page_links:
-            pd[key] += damping_factor * (1.0 / total_linked_pages)
+        for key in corpus:
+            pd[key] = (1 - damping_factor) / total_pages
 
-        for key in all_pages:
-            pd[key] += (1 - damping_factor) * (1.0 / total_pages)
+        for key in page_links:
+            pd[key] += damping_factor / total_linked_pages
     else:
-        for key in all_pages:
-            pd[key] = 1 * (1.0 / total_pages)
+        for key in corpus:
+            pd[key] = 1.0 / total_pages
     return pd
 
 
@@ -106,7 +104,7 @@ def iterate_pagerank(corpus, damping_factor):
     their estimated PageRank value (a value between 0 and 1). All
     PageRank values should sum to 1.
     """
-    total_pages = len(corpus.keys())
+    total_pages = len(corpus)
     distribution = {}.fromkeys(corpus.keys(), 1.0 / total_pages)
     change = True
 
@@ -114,7 +112,7 @@ def iterate_pagerank(corpus, damping_factor):
         change = False
         old_distribution = copy.deepcopy(distribution)
         for page in corpus:
-            distribution[page] = ((1-damping_factor)/total_pages) + (damping_factor * get_sum(corpus, distribution, page))
+            distribution[page] = ((1 - damping_factor)/total_pages) + (damping_factor * get_sum(corpus, distribution, page))
             change = change or abs(old_distribution[page] - distribution[page]) > 0.001
 
     return distribution
@@ -122,9 +120,9 @@ def iterate_pagerank(corpus, damping_factor):
 
 def get_sum(corpus, distribution, page):
     result = 0
-    for p in corpus[page]:
-        result += distribution[p] / len(corpus[p])
-
+    for p in corpus:
+        if page in corpus[p]:
+            result += distribution[p] / len(corpus[p])
     return result
 
 
