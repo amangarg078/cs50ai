@@ -203,7 +203,28 @@ class CrosswordCreator():
         The first value in the list, for example, should be the one
         that rules out the fewest values among the neighbors of `var`.
         """
-        return list(set(self.domains[var]) - set(assignment.values()))
+
+        # get neighbors
+        neighbors = self.crossword.neighbors(var)
+        for i in assignment:
+            if i in neighbors:
+                neighbors.remove(i)
+
+        result = []
+        # for every value in domain, check for overlaps that don't satisfy criteria
+        for val in self.domains[var]:
+            total_ruled_out = 0
+            for var2 in neighbors:
+                for val2 in self.domains[var2]:
+                    overlap = self.crossword.overlaps[var, var2]
+                    if overlap:
+                        a, b = overlap
+                        if val[a] != val2[b]:
+                            # if values don't match, they need to removed
+                            total_ruled_out += 1
+            result.append([val, total_ruled_out])
+        result.sort(key=lambda x: (x[1]))
+        return [i[0] for i in result]
 
     def select_unassigned_variable(self, assignment):
         """
@@ -213,9 +234,14 @@ class CrosswordCreator():
         degree. If there is a tie, any of the tied variables are acceptable
         return values.
         """
+        list_of_variables = []
         for var in self.crossword.variables:
             if var not in assignment:
-                return var
+                list_of_variables.append([var, len(self.domains[var]), len(self.crossword.neighbors(var))])
+
+        if list_of_variables:
+            list_of_variables.sort(key=lambda x: (x[1], -x[2]))
+            return list_of_variables[0][0]
         return None
 
     def backtrack(self, assignment):
